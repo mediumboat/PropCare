@@ -76,8 +76,6 @@ def main(flag=flag, capping_T=0.35, capping_C=0.35):
             random_seed
         )
         model = train_propensity(train_df, vali_df, test_df, flag, num_users, num_items, num_times, popular)
-        with open(plotpath+"/DLCEour_" + flag.dataset +".txt", "a+") as f:
-            print("EXP weight:", model.exp_weight, file=f)
         train_user = tf.convert_to_tensor(train_df["idx_user"].to_numpy(), dtype=tf.int32)
         train_item = tf.convert_to_tensor(train_df["idx_item"].to_numpy(), dtype=tf.int64)
         train_data = tf.data.Dataset.from_tensor_slices((train_user, train_item))
@@ -217,7 +215,7 @@ def main(flag=flag, capping_T=0.35, capping_C=0.35):
         cp100list.append(cp100)
         cdcglist.append(cdcg)
     
-    with open(plotpath+"/DLCEour_" + flag.dataset +".txt", "a+") as f:
+    with open(plotpath+"/result_" + flag.dataset +".txt", "a+") as f:
         print("propensity MSE:", np.mean(mselist), np.std(mselist), file=f)
         print("propensity MAE:", np.mean(maelist), np.std(maelist), file=f)
         print("propensity RMSE:", np.mean(rmselist), np.std(rmselist), file=f)
