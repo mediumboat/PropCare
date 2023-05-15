@@ -125,7 +125,7 @@ class Causal_Model(Model, ABC):
             y_diff = tf.multiply(pop_signs, (y_i - y_j))
             weights_loss = tf.exp( - self.exp_weight * tf.square(y_diff))
             weights_loss = weights_loss / tf.math.reduce_max(weights_loss)
-            loss_pair = self.pro_weight * tf.math.log(tf.math.sigmoid(p_diff)) + self.rele_weight * tf.math.log(tf.math.sigmoid(r_diff))
+            loss_pair =  tf.math.log(self.pro_weight * p_diff +  self.rele_weight * r_diff)
             weights_loss.shape.assert_is_compatible_with(loss_pair.shape)
             loss_pair = tf.multiply(weights_loss, loss_pair)
             loss_pair = - tf.reduce_mean(loss_pair)

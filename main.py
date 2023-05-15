@@ -22,24 +22,19 @@ parser.add_argument("--click_layer_units",
                     help="number of nodes each layer for MLP layers in Click estimators")
 parser.add_argument("--epoch", default=50, type=int,
                     help="Number of epochs in the training")
-# parser.add_argument("--n_pretrain", default=0, type=int,
-#                     help="number of pretrain epochs.")
+
 parser.add_argument("--lambda_1", default=10.0, type=float,
-                    help="weight for reconstruct loss.")
-# parser.add_argument("--lambda_2", default=5.0, type=float,
-#                     help="weight for pair loss.")
+                    help="weight for popularity loss.")
+
 parser.add_argument("--dataset", default='d', type=str,
                     help="the dataset used")
-# parser.add_argument("--lambda_3", default=0.1, type=float,
-#                     help="weight for obj loss.")
+
 parser.add_argument("--batch_size", default=5096, type=int,
                     help="the batch size")
 parser.add_argument("--repeat", default=3, type=int,
                     help="how many time to run the model")
-
 parser.add_argument("--add", default='default', type=str,
-                    help="how many time to run the model")
-
+                    help="additional information")
 parser.add_argument("--p_weight", default=0.4, type=float,
                     help="weight for p_loss")
 parser.add_argument("--pro_weight", default=1.0, type=float,
@@ -49,7 +44,7 @@ parser.add_argument("--rele_weight", default=1.0, type=float,
 flag = parser.parse_args()
 
 
-def main(flag=flag, capping_T=0.35, capping_C=0.35):
+def main(flag=flag):
     cp10list = []
     cp100list = []
     cdcglist = []
