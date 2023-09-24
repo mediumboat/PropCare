@@ -47,7 +47,7 @@ def prepare_data(flag):
         print("dunn_cate (personalized) is used.")
         data_path = Path("../anc/UnbiasedLearningCausal/data/preprocessed/dunn_cat_mailer_10_10_1_1/rank_rp0.40_sf2.00_nr210/")
     elif dataset == "ml":
-        data_path = Path("../ml/anc/data/synthetic/ML_100k_logrank100_offset5.0_scaling1.0")
+        data_path = Path("../anc/data/synthetic/ML_100k_logrank100_offset5.0_scaling1.0")
         print("ML-100k is used")
     train_data = data_path / "data_train.csv"
     vali_data = data_path / "data_vali.csv"
