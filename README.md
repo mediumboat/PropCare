@@ -1,4 +1,4 @@
-# NeurIPS_PropCare_blind_review
+# Code repository of PropCare
 
 This is the implementation of paper "Estimating Propensity for Causality-based Recommendation without Exposure Data".
 
