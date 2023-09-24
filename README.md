@@ -14,6 +14,15 @@ models.py: codes for our proposed PropCare model
 
 train.py: training codes, also including data loading related codes
 
+## 2. Requirements (Environment)
+	python >= 3.6
+	tensorflow >= 2.2.0
+  	numpy
+  	pandas
+  	tqdm 
+  	pathlib 
+
+
 ## Dataset & How to run:
 
 1. Since the semi-simulated dataset is quite large (~2GB each), you should download from the original source.
