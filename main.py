@@ -22,13 +22,10 @@ parser.add_argument("--click_layer_units",
                     help="number of nodes each layer for MLP layers in Click estimators")
 parser.add_argument("--epoch", default=50, type=int,
                     help="Number of epochs in the training")
-
 parser.add_argument("--lambda_1", default=10.0, type=float,
                     help="weight for popularity loss.")
-
 parser.add_argument("--dataset", default='d', type=str,
                     help="the dataset used")
-
 parser.add_argument("--batch_size", default=5096, type=int,
                     help="the batch size")
 parser.add_argument("--repeat", default=3, type=int,
@@ -37,10 +34,6 @@ parser.add_argument("--add", default='default', type=str,
                     help="additional information")
 parser.add_argument("--p_weight", default=0.4, type=float,
                     help="weight for p_loss")
-parser.add_argument("--pro_weight", default=1.0, type=float,
-                    help="weight for propensity_loss")
-parser.add_argument("--rele_weight", default=1.0, type=float,
-                    help="weight for relevence_loss")
 flag = parser.parse_args()
 
 
@@ -48,21 +41,6 @@ def main(flag=flag):
     cp10list = []
     cp100list = []
     cdcglist = []
-    mselist = []
-    maelist = []
-    rmselist = []
-    nrmselist = []
-    taulist = []
-    pearsonlist = []
-    
-    tmselist = []
-    tmaelist = []
-    trmselist = []
-    tnrmselist = []
-    ttaulist = []
-    tpearsonlist = []
-    tf1list = []
-    tauclist = []
     random_seed = int(233)
     for epoch in range(flag.repeat):
         train_df, vali_df, test_df, num_users, num_items, num_times, popular = prepare_data(flag)
@@ -78,68 +56,7 @@ def main(flag=flag):
         test_user = tf.convert_to_tensor(test_df["idx_user"].to_numpy(), dtype=tf.int32)
         test_item = tf.convert_to_tensor(test_df["idx_item"].to_numpy(), dtype=tf.int64)
         test_data = tf.data.Dataset.from_tensor_slices((test_user, test_item))
-
-
-#### EValuate on train data ##########
-        p_pred = None
-        for u, i in train_data.batch(5000):
-            _, p_batch, _, _ = model((u, i), training=False)
-            if p_pred is None:
-                p_pred = p_batch
-            else:
-                p_pred = tf.concat((p_pred, p_batch), axis=0)
-        p_pred = np.squeeze(p_pred.numpy())
-        with open(plotpath+"/propensity_test_"+ flag.add+ "_" + flag.dataset +".txt", "w+") as f:
-            np.savetxt(f, p_pred, fmt='%.4f', encoding="utf-8")
-        # p_pred = (p_pred - np.min(p_pred)) / (np.max(p_pred) - np.min(p_pred))
-        p_true = np.squeeze(train_df["propensity"].to_numpy())
-        if flag.dataset == "ml":
-            p_pred = p_pred * 0.2
-        from sklearn.metrics import mean_absolute_error, mean_squared_error
-        mse = mean_squared_error(y_pred=p_pred, y_true=p_true, squared=True)
-        rmse = mean_squared_error(y_pred=p_pred, y_true=p_true, squared=False)
-        mae = mean_absolute_error(y_pred=p_pred, y_true=p_true)
-        nrmse = rmse / np.mean(p_true)
-        mselist.append(mse)
-        maelist.append(mae)
-        rmselist.append(rmse)
-        nrmselist.append(nrmse)
-        from scipy.stats import kendalltau, pearsonr
-        tau_res, _ = kendalltau(p_pred, p_true)
-        taulist.append(tau_res)
-        pearsonres, _ = pearsonr(p_pred, p_true)
-        pearsonlist.append(pearsonres)
-
-        t_true = np.squeeze(train_df["treated"].to_numpy())
-        # p_pred = 0.25 * ((p_pred - np.mean(p_pred))/ (np.std(p_pred)))
-        p_pred = np.clip((p_pred + 0.5), 0.0, 1.0)
-        if flag.dataset == "d" or "p":
-            flag.thres = 0.70
-        elif flag.dataset == "ml":
-            flag.thres = 0.65
-            p_pred = p_pred / 5.0
-        t_pred = np.where(p_pred >= flag.thres, 1.0, 0.0)
-        # t_pred= np.random.binomial(1, p_pred)
-        mse = mean_squared_error(y_pred=t_pred, y_true=t_true, squared=True)
-        rmse = mean_squared_error(y_pred=t_pred, y_true=t_true, squared=False)
-        mae = mean_absolute_error(y_pred=t_pred, y_true=t_true)
-        nrmse = rmse / np.mean(t_true)
-        tmselist.append(mse)
-        tmaelist.append(mae)
-        trmselist.append(rmse)
-        tnrmselist.append(nrmse)
-        tau_res, _ = kendalltau(t_pred, t_true)
-        ttaulist.append(tau_res)
-        pearsonres, _ = pearsonr(t_pred, t_true)
-        tpearsonlist.append(pearsonres)
-        from sklearn.metrics import f1_score, roc_auc_score
-        tf1 = f1_score(y_true=t_true, y_pred=t_pred, average='macro')
-        tauc = roc_auc_score(y_true=t_true, y_score=t_pred, average='macro')
-        tf1list.append(tf1)
-        tauclist.append(tauc)
         
- #### Train on training data ##########       
-        gamma_pred = None
         p_pred = None
         for u, i in train_data.batch(5000):
             _, p_batch, _ ,_ = model((u, i), training=False)
@@ -148,23 +65,19 @@ def main(flag=flag):
             else:
                 p_pred = tf.concat((p_pred, p_batch), axis=0)
         p_pred = p_pred.numpy()
-        with open(plotpath+"/propensity_train_"+ flag.add+ "_" + flag.dataset +".txt", "w+") as f:
-            np.savetxt(f, p_pred, fmt='%.4f', encoding="utf-8")
         p_pred_t = 0.25 * ((p_pred - np.mean(p_pred))/ (np.std(p_pred)))
         p_pred_t = np.clip((p_pred + 0.5), 0.0, 1.0)
         if flag.dataset == "d" or "p":
             flag.thres = 0.70
         elif flag.dataset == "ml":
             flag.thres = 0.65
+        t_pred = np.where(p_pred_t >= flag.thres, 1.0, 0.0)
         if flag.dataset == "d" or "p":
             p_pred = p_pred * 0.8
         if flag.dataset == "ml":
             p_pred = p_pred * 0.2
-        t_pred = np.where(p_pred_t >= flag.thres, 1.0, 0.0)
-        # t_pred= np.random.binomial(1, p_pred)
         train_df["propensity"] = np.clip(p_pred, 0.0001, 0.9999)
         train_df["treated"] = t_pred
-        
         if flag.dataset == "d":
             cap = 0.03
             lr = 0.001
@@ -189,7 +102,6 @@ def main(flag=flag):
             for t in range(num_times):
                 test_df_t = test_df[test_df["idx_time"] == t]
                 test_df_t["pred"] = recommender.predict(test_df_t)
-                # print(test_df_t["pred"])
                 evaluator = Evaluator()
                 cp10_tmp_list.append(evaluator.evaluate(test_df_t, 'CPrec', 10))
                 cp100_tmp_list.append(evaluator.evaluate(test_df_t, 'CPrec', 100))
@@ -198,7 +110,6 @@ def main(flag=flag):
             for t in [0]:
                 test_df_t = test_df[test_df["idx_time"] == t]
                 test_df_t["pred"] = recommender.predict(test_df_t)
-                # print(test_df_t["pred"])
                 evaluator = Evaluator()
                 cp10_tmp_list.append(evaluator.evaluate(test_df_t, 'CPrec', 10))
                 cp100_tmp_list.append(evaluator.evaluate(test_df_t, 'CPrec', 100))
@@ -211,20 +122,6 @@ def main(flag=flag):
         cdcglist.append(cdcg)
     
     with open(plotpath+"/result_" + flag.dataset +".txt", "a+") as f:
-        print("propensity MSE:", np.mean(mselist), np.std(mselist), file=f)
-        print("propensity MAE:", np.mean(maelist), np.std(maelist), file=f)
-        print("propensity RMSE:", np.mean(rmselist), np.std(rmselist), file=f)
-        print("propensity NRMSE:", np.mean(nrmselist), np.std(nrmselist), file=f)
-        print("Tau:", np.mean(taulist), np.std(taulist), file=f)
-        print("Pearson:", np.mean(pearsonlist), np.std(pearsonlist), file=f)
-        print("Exposure MSE:", np.mean(tmselist), np.std(tmselist), file=f)
-        print("Exposure MAE:", np.mean(tmaelist), np.std(tmaelist), file=f)
-        print("Exposure RMSE:", np.mean(trmselist), np.std(trmselist), file=f)
-        print("Exposure NRMSE:", np.mean(tnrmselist), np.std(tnrmselist), file=f)
-        print("Exposure Tau:", np.mean(ttaulist), np.std(ttaulist), file=f)
-        print("Exposure Pearson:", np.mean(tpearsonlist), np.std(tpearsonlist), file=f)
-        print("Exposure F1:", np.mean(tf1list), np.std(tf1list), file=f)
-        print("Exposure AUC:", np.mean(tauclist), np.std(tauclist), file=f)
         print("CP10:", np.mean(cp10list), np.std(cp10list), file=f)
         print("CP100:", np.mean(cp100list), np.std(cp100list), file=f)
         print("CDCG:", np.mean(cdcglist), np.std(cdcglist), file=f)

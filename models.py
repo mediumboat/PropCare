@@ -20,9 +20,6 @@ class Causal_Model(Model, ABC):
         self.lambda_1 = flags.lambda_1
         self.dims = flags.dimension
         self.p_weight = flags.p_weight
-        self.pro_weight = flags.pro_weight
-        self.rele_weight = flags.rele_weight
-                # _____________Initialize Embedding Layer____________________________________________
         self.norm_layer = tf.keras.constraints.non_neg()
         if user_embs is None:
             self.mf_user_embedding = Embedding(input_dim=num_users, output_dim=flags.dimension,
@@ -40,14 +37,11 @@ class Causal_Model(Model, ABC):
             self.mf_item_embedding = Embedding(input_dim=num_items, output_dim=flags.dimension,
                                                name='mf_item_embedding', input_length=1, weights=[item_embs],
                                                trainable=False, embeddings_regularizer="l2")
-        # _____________Initialize shared embedding Layers____________________________________________
         self.flatten_layers = Flatten()
         self.emb_layers = []
         for i, unit in enumerate(flags.embedding_layer_units):
             self.emb_layers.append(
                 Dense(unit, activation=tf.keras.layers.LeakyReLU(), name="emb_{}".format(i), kernel_initializer='he_normal', trainable=True))
-
-        # _____________Initialize propensity estimator and relevance estimator Layer____________________
         self.propensity_layers = []
         self.relevance_layers = []
         self.propensity_bn_layers = []
@@ -58,6 +52,22 @@ class Causal_Model(Model, ABC):
         self.film_beta_relevance = []
         self.exp_weight = tf.Variable(1.0, trainable=True)
         for i, unit in enumerate(flags.estimator_layer_units):
+            self.film_alpha_propensity.append(
+                Dense(unit, activation=tf.keras.layers.LeakyReLU(), name='film_alpha_propensity_{}'.format(i),
+                      kernel_initializer="he_normal", trainable=True))
+            self.film_beta_propensity.append(
+                Dense(unit, activation=tf.keras.layers.LeakyReLU(), name='film_beta_propensity_{}'.format(i),
+                      kernel_initializer="he_normal", trainable=True))
+            self.film_alpha_relevance.append(
+                Dense(unit, activation=tf.keras.layers.LeakyReLU(), name='film_alpha_relevance_{}'.format(i),
+                      kernel_initializer="he_normal", trainable=True))
+            self.film_beta_relevance.append(
+                Dense(unit, activation=tf.keras.layers.LeakyReLU(), name='film_beta_relevance_{}'.format(i), 
+                      kernel_initializer="he_normal", trainable=True))
+            self.propensity_bn_layers.append(
+                BatchNormalization(name='batch_norm_propensity_{}'.format(i), trainable=True))
+            self.relevance_bn_layers.append(
+                BatchNormalization(name='batch_norm_relevance_{}'.format(i), trainable=True))
             self.propensity_layers.append(
                 Dense(unit, activation=tf.keras.layers.LeakyReLU(), name='propensity_{}'.format(i), kernel_regularizer="l2",
                       kernel_initializer="he_normal", trainable=True))
@@ -70,13 +80,9 @@ class Causal_Model(Model, ABC):
         self.relevance_Prediction_layer = Dense(1, activation='sigmoid',
                                                 name="relevance_prediction", kernel_regularizer="l2",
                                                 kernel_initializer="he_normal", trainable=True)
-        # Define optimizers
         self.kl = tf.keras.losses.KLDivergence()
         self.target_dist = tfp.distributions.Beta(0.2, 1.0)
         self.estimator_optimizer = keras.optimizers.SGD(keras.optimizers.schedules.CosineDecayRestarts(initial_learning_rate=0.01, first_decay_steps=2000))
-        self.click_loss_tracker = keras.metrics.Mean(name="click_loss")
-        self.estimator_loss_tracker = keras.metrics.Mean(name="estimator_loss")
-        self.reg_loss_tracker = keras.metrics.Mean(name="reg_loss")
 
     @tf.function()
     def call(self, inputs, training=None, **kwargs):
@@ -92,9 +98,29 @@ class Causal_Model(Model, ABC):
         film_reg_loss = 0.0
         for i, unit in enumerate(self.estimator_layer_units):
             propensity_layer = self.propensity_layers[i]
+            film_alpha_propensity_layer = self.film_alpha_propensity[i]
+            film_beta_propensity_layer = self.film_beta_propensity[i]
+            propensity_bn_layer = self.propensity_bn_layers[i]
             propensity_vector = propensity_layer(propensity_vector)
+            film_alpha_propensity = film_alpha_propensity_layer(mf_vector)
+            film_beta_propensity = film_beta_propensity_layer(mf_vector)
+            film_reg_loss += tf.nn.l2_loss(film_alpha_propensity - 1)
+            film_reg_loss += tf.nn.l2_loss(film_beta_propensity)
+            propensity_vector = tf.nn.leaky_relu(
+                tf.multiply(propensity_vector, film_alpha_propensity) + film_beta_propensity)
+            propensity_vector = propensity_bn_layer(propensity_vector, training=training)
             relevance_layer = self.relevance_layers[i]
+            film_alpha_relevance_layer = self.film_alpha_relevance[i]
+            film_beta_relevance_layer = self.film_beta_relevance[i]
+            relevance_bn_layer = self.relevance_bn_layers[i]
             relevance_vector = relevance_layer(relevance_vector)
+            film_alpha_relevance = film_alpha_relevance_layer(mf_vector)
+            film_beta_relevance = film_beta_relevance_layer(mf_vector)
+            film_reg_loss += tf.nn.l2_loss(film_alpha_relevance - 1)
+            film_reg_loss += tf.nn.l2_loss(film_beta_relevance)
+            relevance_vector = tf.nn.leaky_relu(
+                tf.multiply(relevance_vector, film_alpha_relevance) + film_beta_relevance)
+            relevance_vector = relevance_bn_layer(relevance_vector, training=training)
         propensity = self.propensity_Prediction_layer(propensity_vector)
         relevance = self.relevance_Prediction_layer(relevance_vector)
         propensity = tf.reshape(propensity, [-1, 1])
@@ -121,26 +147,26 @@ class Causal_Model(Model, ABC):
             pop_signs = tf.reshape(pop_signs, [-1, 1])
             pop_signs.shape.assert_is_compatible_with(y_i.shape)
             p_diff = tf.multiply(pop_signs, (p_i - p_j))
-            r_diff = tf.multiply(pop_signs, (r_j - r_i))
-            y_diff = tf.multiply(pop_signs, (y_i - y_j))
+            r_diff = tf.multiply(pop_signs, (r_j - r_i)) # Remember, r and p are opposite
+            y_diff = tf.multiply(pop_signs, (y_i - y_j))            
             weights_loss = tf.exp( - self.exp_weight * tf.square(y_diff))
             weights_loss = weights_loss / tf.math.reduce_max(weights_loss)
-            loss_pair =  tf.math.log(self.pro_weight * p_diff +  self.rele_weight * r_diff)
+            loss_pair = tf.math.log(tf.math.sigmoid(p_diff)) + tf.math.log(tf.math.sigmoid(r_diff))
             weights_loss.shape.assert_is_compatible_with(loss_pair.shape)
             loss_pair = tf.multiply(weights_loss, loss_pair)
             loss_pair = - tf.reduce_mean(loss_pair)
             target_samples_i = tf.stop_gradient(self.target_dist.sample(tf.shape(p_i)))
             target_samples_j = tf.stop_gradient(self.target_dist.sample(tf.shape(p_j)))
-            p_loss =  self.kl(tf.sort(target_samples_i, axis=0), tf.sort(p_i, axis=0)) + self.kl(tf.sort(target_samples_j, axis=0), tf.sort(p_j, axis=0))
-            reg_loss = 0.0001 * (tf.add_n(self.losses) + film_reg_loss_1 + film_reg_loss_2) + self.p_weight * (p_loss)
+            q1 = tf.sort(target_samples_i, axis=0)
+            q2 = tf.sort(target_samples_j, axis=0)
+            p1 = tf.sort(p_i, axis=0)
+            p2 = tf.sort(p_j, axis=0)
+            q1 = tf.clip_by_value(q1, 0.0001, 0.9999)
+            q2 = tf.clip_by_value(q2, 0.0001, 0.9999)
+            p_loss =  self.kl(p1, q1) + self.kl(p2, q2)
+            reg_loss = 0.0001 * (tf.add_n(self.losses) + film_reg_loss_1 + film_reg_loss_2) + self.p_weight * (p_loss) 
             loss = self.lambda_1 * loss_pair + loss_click + reg_loss
         self.estimator_optimizer.minimize(loss, self.trainable_weights, tape=tape2) 
-        self.estimator_loss_tracker.update_state(loss_pair)
-        self.click_loss_tracker.update_state(loss_click)
-        self.reg_loss_tracker.update_state(reg_loss)
-        return {"click_loss": self.click_loss_tracker.result(),
-                "estimator_loss": self.estimator_loss_tracker.result(),
-                "reg_loss": self.reg_loss_tracker.result()}
 
  
 

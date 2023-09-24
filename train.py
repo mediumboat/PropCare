@@ -107,13 +107,9 @@ def train_propensity(train_df, vali_df, test_df, flag, num_users, num_items, num
         train_data = tf.data.Dataset.from_tensor_slices((train_df["idx_user"].to_numpy(), train_df["idx_item"].to_numpy(), j_list, train_df["outcome"].to_numpy()))
         with tqdm(total=len(train_df) // flag.batch_size + 1) as t:
             t.set_description('Training Epoch %i' % epoch)
-            for user, item, item_j, value in train_data.shuffle(50000).batch(flag.batch_size):
+            for user, item, item_j, value in train_data.shuffle(100).batch(flag.batch_size):
                 step = model.propensity_train((user, item, item_j, value))
-                t.set_postfix(click_loss=step["click_loss"].numpy(), estimator_loss=step['estimator_loss'].numpy(), reg_loss=step['reg_loss'].numpy())
                 t.update()
-                model.click_loss_tracker.reset_states()
-                model.estimator_loss_tracker.reset_states()
-                model.reg_loss_tracker.reset_states()
         vali_data = tf.data.Dataset.from_tensor_slices((vali_df["idx_user"].to_numpy(), vali_df["idx_item"].to_numpy()))
         gamma_pred = None
         p_pred = None
@@ -133,11 +129,7 @@ def train_propensity(train_df, vali_df, test_df, flag, num_users, num_items, num
         tau_res, _ = kendalltau(p_pred, p_true)
         pearsonres, _ = pearsonr(p_pred, p_true)
         mse = mean_squared_error(y_pred=p_pred, y_true=p_true, squared=True)
-        print("Pearson:", pearsonres)
-        print("Tau:", tau_res)
-        print("Propensity prediction square error:", mse)
-        print("weight:", model.exp_weight.numpy())
-        val_obj = pearsonres
+        val_obj = tau_res
         if abs(val_obj) > optim_val_car:
             optim_val_car = val_obj
             if not os.path.isdir(plotpath+ '/' + flag.add):

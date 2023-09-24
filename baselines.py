@@ -1258,14 +1258,4 @@ class CausalNeighborBase(Recommender):
 
 
 if __name__ == "__main__":
-    train_df, vali_df, test_df, num_users, num_items = prepare_data()
-    recommender = DLMF(num_users, num_items, capping_T=0.3, capping_C=0.3, learn_rate=0.01, reg_factor=0.01)
-    err = recommender.train(train_df,iter=1)
-    test_df = test_df[test_df["idx_time"] == np.random.randint(10)]
-    test_df["pred"] = recommender.predict(test_df)
-    print(test_df["pred"][:10])
-    print(np.mean(test_df["pred"].to_numpy()), np.std(test_df["pred"].to_numpy()))
-    evaluator = Evaluator()
-    print("CP@10:", evaluator.evaluate(test_df, 'CPrec', 10))
-    print("CP@100:", evaluator.evaluate(test_df, 'CPrec', 100))
-    print("CDCG:", evaluator.evaluate(test_df, 'CDCG', 100000))
+    pass
