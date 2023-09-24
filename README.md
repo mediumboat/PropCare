@@ -1,4 +1,4 @@
-# Code repository of PropCare
+# Code repository for PropCare
 
 This is the implementation of paper "Estimating Propensity for Causality-based Recommendation without Exposure Data".
 
