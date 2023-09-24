@@ -14,7 +14,7 @@ models.py: codes for our proposed PropCare model
 
 train.py: training codes, also including data loading related codes
 
-## 2. Requirements (Environment)
+## Requirements (Environment)
 	python >= 3.6
 	tensorflow >= 2.2.0
   	numpy
