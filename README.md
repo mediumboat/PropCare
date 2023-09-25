@@ -4,11 +4,11 @@ This is the implementation of paper "Estimating Propensity for Causality-based R
 
 ## Description of each file:
 
-baselines.py: including codes for DLCE model (or some other recommendation models)
+baselines.py: including codes for DLCE model (or some other recommendation models) (Many thanks to Masahiro Sato for their open source codes)
 
-evaluator.py: evaluation code to compute CP@10, CP@100 and CDCG
+evaluator.py: evaluation code to compute CP@10, CP@100 and CDCG (Many thanks to Masahiro Sato for their open source codes)
 
-main: the entrance of the program
+main.py: the entrance of the program
 
 models.py: codes for our proposed PropCare model
 
