@@ -14,6 +14,8 @@ models.py: codes for our proposed PropCare model
 
 train.py: training codes, also including data loading related codes
 
+/model: the check point of optimzed models.
+
 ## Requirements (Environment)
 	python >= 3.6
 	tensorflow >= 2.2.0
@@ -33,6 +35,8 @@ Download the raw data and code for generating semi-simulated from https://arxiv.
 3. Set all parameters in main.py
 
 4. Execute "python -u main.py --dataset d" for DH_original dataset, "python -u main.py --dataset p" for DH_personalized dataset, "python -u main.py --dataset ml" for ML dataset.
+
+   The check points of optimzed models for each dataset are avaliable in /model.
 
 ## Contact
 For any questions, please contact me (zzliu[DOT]2020[AT]phdcs[DOT]smu[DOT]edu[DOT]sg)
