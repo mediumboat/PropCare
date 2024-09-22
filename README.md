@@ -1,6 +1,6 @@
 # Code repository for PropCare
 
-This is the implementation of paper "Estimating Propensity for Causality-based Recommendation without Exposure Data".
+This is the implementation of paper "Estimating Propensity for Causality-based Recommendation without Exposure Data" presented in NeurIPS 2023 ([link to paper](https://arxiv.org/abs/2310.20388)).
 
 ## Description of each file:
 
